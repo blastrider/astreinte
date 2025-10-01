@@ -266,9 +266,9 @@ fn main() -> Result<()> {
                 if let Some(path) = report {
                     // CSV simple
                     let mut w = csv::Writer::from_path(path)?;
-                    w.write_record(&["person_id", "shift_a", "shift_b", "kind"])?;
+                    w.write_record(["person_id", "shift_a", "shift_b", "kind"])?;
                     for c in &conflicts {
-                        w.write_record(&[
+                        w.write_record([
                             c.person.as_str(),
                             c.shift_a.as_str(),
                             c.shift_b.as_str(),
