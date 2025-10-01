@@ -1,0 +1,77 @@
+{
+  "people": [
+    {
+      "id": "428ab0a5-2812-4633-82d6-ca01e6b2222a",
+      "handle": "maxime",
+      "display_name": "Maxime Dupont",
+      "on_vacation": false
+    },
+    {
+      "id": "73502869-2ed7-4a3a-ace9-3b9e9855390f",
+      "handle": "antho",
+      "display_name": "Anthony Lebrun",
+      "on_vacation": false,
+      "vacations": [
+        {
+          "start": "2025-12-24T00:00:00Z",
+          "end": "2026-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": "306786c7-5949-458e-a48b-07ff44d72501",
+      "handle": "lea",
+      "display_name": "Lea Martin",
+      "on_vacation": false,
+      "vacations": [
+        {
+          "start": "2025-12-26T00:00:00Z",
+          "end": "2025-12-27T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": "05dd1a03-48d7-4bf3-b523-06cdfd49299f",
+      "handle": "sara",
+      "display_name": "Sara Bernard",
+      "on_vacation": false
+    },
+    {
+      "id": "248c2dfe-8a2f-4b64-950a-92a16f670cb1",
+      "handle": "maxime",
+      "display_name": "Maxime Dupont",
+      "on_vacation": false
+    },
+    {
+      "id": "50a72ab4-4041-46d8-862d-9a1df5aea958",
+      "handle": "antho",
+      "display_name": "Anthony Lebrun",
+      "on_vacation": false,
+      "vacations": [
+        {
+          "start": "2025-12-24T00:00:00Z",
+          "end": "2026-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": "d7c0a436-6e0c-4ee3-9503-ad44bfa432ea",
+      "handle": "lea",
+      "display_name": "Lea Martin",
+      "on_vacation": false,
+      "vacations": [
+        {
+          "start": "2025-12-26T00:00:00Z",
+          "end": "2025-12-27T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": "7465639a-14ec-4acc-b3b9-b606ce350cc5",
+      "handle": "sara",
+      "display_name": "Sara Bernard",
+      "on_vacation": false
+    }
+  ],
+  "shifts": []
+}
