@@ -6,11 +6,11 @@
 //! - Détection de conflits, swaps sûrs.
 //! - Tout en UTC ; parsing RFC3339 ; affichage local en dehors de la lib.
 
+pub mod io;
 pub mod model;
 pub mod scheduler;
 pub mod storage;
-pub mod io;
 
-pub use model::{Person, PersonId, Role, Shift, ShiftId, VacationPeriod, Roster};
+pub use model::{Person, PersonId, Role, Roster, Shift, ShiftId, VacationPeriod};
 pub use scheduler::{AssignOptions, Conflict, ConflictKind, Scheduler};
-pub use storage::{Storage, JsonStorage};
+pub use storage::{JsonStorage, Storage};
