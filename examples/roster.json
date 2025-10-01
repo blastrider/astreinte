@@ -1,0 +1,66 @@
+{
+  "people": [
+    {
+      "id": "671901eb-1754-46cc-989e-5c666aaecae4",
+      "handle": "maxime",
+      "display_name": "Maxime Dupont",
+      "on_vacation": false
+    },
+    {
+      "id": "7d12c22b-531b-41f6-8798-4159b6145c2e",
+      "handle": "antho",
+      "display_name": "Anthony Lebrun",
+      "on_vacation": false,
+      "vacations": [
+        {
+          "start": "2025-12-24T00:00:00Z",
+          "end": "2026-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": "e3e62461-d6bc-4b56-989c-1890e7f22e33",
+      "handle": "lea",
+      "display_name": "Lea Martin",
+      "on_vacation": false,
+      "vacations": [
+        {
+          "start": "2025-12-26T00:00:00Z",
+          "end": "2025-12-27T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": "727b9c16-be9f-4a37-8c54-35f82c9d6816",
+      "handle": "sara",
+      "display_name": "Sara Bernard",
+      "on_vacation": false
+    }
+  ],
+  "shifts": [
+    {
+      "id": "0a790cdf-7840-4867-b622-08296c5d356a",
+      "name": "Holiday Ramp Up",
+      "start": "2025-12-19T08:00:00Z",
+      "end": "2025-12-26T08:00:00Z",
+      "role": null,
+      "assigned": "671901eb-1754-46cc-989e-5c666aaecae4"
+    },
+    {
+      "id": "edbb2973-fa2d-42d9-bd41-77bed523bb71",
+      "name": "New Year Support",
+      "start": "2025-12-26T08:00:00Z",
+      "end": "2025-12-29T08:00:00Z",
+      "role": null,
+      "assigned": "727b9c16-be9f-4a37-8c54-35f82c9d6816"
+    },
+    {
+      "id": "d1fe8478-c962-4ec6-ac6a-86111b3b3723",
+      "name": "New Year Support",
+      "start": "2025-12-29T08:00:00Z",
+      "end": "2026-01-02T08:00:00Z",
+      "role": null,
+      "assigned": "671901eb-1754-46cc-989e-5c666aaecae4"
+    }
+  ]
+}
