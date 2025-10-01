@@ -1,11 +1,11 @@
-use crate::model::{Person, Roster, Shift};
+use crate::model::{Person, Roster, Shift, VacationPeriod};
 use anyhow::{bail, Context};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
 use csv::{ReaderBuilder, WriterBuilder};
 use std::fs;
 use std::path::Path;
 
-/// Import de personnes depuis CSV: header `handle,display_name`
+/// Import de personnes depuis CSV: header `handle,display_name[,on_vacation][,vacations]`
 pub fn import_people_csv<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Person>> {
     let mut rdr = ReaderBuilder::new().has_headers(true).from_path(path)?;
     let mut out = Vec::new();
@@ -24,6 +24,13 @@ pub fn import_people_csv<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Person>>
                     .with_context(|| format!("invalid on_vacation value for handle {handle}"))?;
             }
         }
+        if let Some(ranges) = rec.get(3) {
+            let ranges = ranges.trim();
+            if !ranges.is_empty() {
+                person.vacations = parse_vacations(ranges)
+                    .with_context(|| format!("invalid vacations value for handle {handle}"))?;
+            }
+        }
         out.push(person);
     }
     Ok(out)
@@ -35,6 +42,44 @@ fn parse_bool(s: &str) -> anyhow::Result<bool> {
         "false" | "0" | "no" | "n" | "non" => Ok(false),
         _ => bail!("expected boolean"),
     }
+}
+
+fn parse_vacations(raw: &str) -> anyhow::Result<Vec<VacationPeriod>> {
+    raw.split(';')
+        .filter(|chunk| !chunk.trim().is_empty())
+        .map(|chunk| parse_vacation_chunk(chunk.trim()))
+        .collect()
+}
+
+fn parse_vacation_chunk(chunk: &str) -> anyhow::Result<VacationPeriod> {
+    if let Some((start_raw, end_raw)) = chunk.split_once('/')
+        .or_else(|| chunk.split_once(".."))
+    {
+        let (start, _) = parse_point(start_raw.trim())?;
+        let (mut end, end_was_date) = parse_point(end_raw.trim())?;
+        if end_was_date {
+            end = end + Duration::days(1);
+        }
+        VacationPeriod::new(start, end).map_err(anyhow::Error::msg)
+    } else {
+        let (start, was_date) = parse_point(chunk)?;
+        let end = if was_date {
+            start + Duration::days(1)
+        } else {
+            start + Duration::days(1)
+        };
+        VacationPeriod::new(start, end).map_err(anyhow::Error::msg)
+    }
+}
+
+fn parse_point(raw: &str) -> anyhow::Result<(DateTime<Utc>, bool)> {
+    if let Ok(dt) = raw.parse::<DateTime<Utc>>() {
+        return Ok((dt, false));
+    }
+    let date = NaiveDate::parse_from_str(raw, "%Y-%m-%d")
+        .with_context(|| format!("invalid date/datetime: {raw}"))?;
+    let datetime = date.and_hms_opt(0, 0, 0).context("invalid midnight conversion")?;
+    Ok((Utc.from_utc_datetime(&datetime), true))
 }
 
 /// Import de shifts: header `name,start,end` (RFC3339 UTC)
