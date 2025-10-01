@@ -303,7 +303,7 @@ fn main() -> Result<()> {
             days_before,
             out,
         } => {
-            let renderer = TextReminder::default();
+            let renderer = TextReminder;
             let reminder = prepare_reminder(
                 scheduler.roster(),
                 &handle,
