@@ -20,6 +20,8 @@ pub struct Person {
     pub display_name: String,
     #[serde(default)]
     pub on_vacation: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub vacations: Vec<VacationPeriod>,
 }
 
 impl Person {
@@ -29,7 +31,24 @@ impl Person {
             handle: handle.into(),
             display_name: display_name.into(),
             on_vacation: false,
+            vacations: Vec::new(),
         }
+    }
+}
+
+/// Période de congés d'une personne (intervalle UTC [start, end)).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VacationPeriod {
+    pub start: DateTime<Utc>,
+    pub end: DateTime<Utc>,
+}
+
+impl VacationPeriod {
+    pub fn new(start: DateTime<Utc>, end: DateTime<Utc>) -> Result<Self, String> {
+        if end <= start {
+            return Err("vacation end must be after start".to_string());
+        }
+        Ok(Self { start, end })
     }
 }
 
