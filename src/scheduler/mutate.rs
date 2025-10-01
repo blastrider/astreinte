@@ -45,7 +45,7 @@ pub(super) fn swap(
     let conflicts = scheduler.detect_conflicts(opts);
     let severe = conflicts
         .iter()
-        .any(|c| &c.person == &target && c.kind == ConflictKind::Overlap);
+        .any(|c| c.person == target && c.kind == ConflictKind::Overlap);
     if severe {
         scheduler.roster.shifts[pos].assigned = prev;
         return Err(SchedError::SwapInvalid("introduces overlap"));
