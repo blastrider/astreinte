@@ -3,9 +3,11 @@ use anyhow::{bail, Result};
 use astreinte::{
     io,
     model::{Person, ShiftId},
+    notification::{prepare_reminder, TextReminder},
     scheduler::{AssignOptions, ConflictKind, Scheduler},
     storage::{JsonStorage, Storage},
 };
+use chrono::Utc;
 use clap::{Parser, Subcommand};
 #[cfg(feature = "logging")]
 use tracing_subscriber::{fmt::Subscriber, EnvFilter};
@@ -105,6 +107,17 @@ enum Commands {
         /// Export CSV des conflits (optionnel)
         #[arg(long)]
         report: Option<String>,
+    },
+
+    /// Générer un rappel texte pour un membre d'astreinte
+    Notify {
+        #[arg(long)]
+        handle: String,
+        #[arg(long, default_value_t = 2)]
+        days_before: i64,
+        /// Fichier de sortie (texte brut)
+        #[arg(long)]
+        out: String,
     },
 }
 
@@ -284,6 +297,28 @@ fn main() -> Result<()> {
                 // Code 2 = WARNING/INCOMPLETE
                 2
             }
+        }
+        Commands::Notify {
+            handle,
+            days_before,
+            out,
+        } => {
+            let renderer = TextReminder;
+            let reminder = prepare_reminder(
+                scheduler.roster(),
+                &handle,
+                days_before,
+                Utc::now(),
+                &renderer,
+            )?;
+            std::fs::write(&out, reminder.content)?;
+            println!(
+                "Reminder generated for {} (shift {}) at {}",
+                reminder.person_handle,
+                reminder.shift_id,
+                reminder.notice_at.to_rfc3339()
+            );
+            0
         }
     };
 

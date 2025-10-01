@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+use astreinte::{prepare_reminder, TextReminder};
 use astreinte::{AssignOptions, Person, Scheduler, VacationPeriod};
 use chrono::{TimeZone, Utc};
 
@@ -160,4 +161,30 @@ fn cover_rejects_vacation_overlap() {
 
     let result = scheduler.cover_shift(&shift_id, mid, &bob.id, AssignOptions::default());
     assert!(result.is_err());
+}
+
+#[test]
+fn prepare_text_reminder_for_upcoming_shift() {
+    let mut scheduler = Scheduler::new();
+    let alice = Person::new("alice", "Alice");
+    scheduler.add_people(vec![alice.clone()]);
+
+    let start = Utc.with_ymd_and_hms(2025, 12, 10, 8, 0, 0).unwrap();
+    let end = Utc.with_ymd_and_hms(2025, 12, 10, 20, 0, 0).unwrap();
+    let shift_id = scheduler.create_shift("Journée", start, end).unwrap();
+    scheduler
+        .roster_mut()
+        .find_shift_mut(&shift_id)
+        .unwrap()
+        .assigned = Some(alice.id.clone());
+
+    let roster = scheduler.roster().clone();
+    let now = Utc.with_ymd_and_hms(2025, 12, 7, 8, 0, 0).unwrap();
+    let reminder = prepare_reminder(&roster, "alice", 2, now, &TextReminder).unwrap();
+
+    assert_eq!(reminder.person_handle, "alice");
+    assert_eq!(reminder.shift_id, shift_id.as_str());
+    assert_eq!(reminder.notice_at, start - chrono::Duration::days(2));
+    assert!(reminder.content.contains("Alice"));
+    assert!(reminder.content.contains("Journée"));
 }
