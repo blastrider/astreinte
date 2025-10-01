@@ -1,5 +1,5 @@
-use crate::model::{Person, PersonId, Roster, Shift, ShiftId};
-use chrono::{DateTime, Utc};
+use crate::model::{Person, PersonId, Roster, Shift, ShiftId, VacationPeriod};
+use chrono::{DateTime, Duration, Utc};
 use thiserror::Error;
 
 /// Options d'assignation
@@ -40,6 +40,8 @@ pub enum SchedError {
     UnknownShift(String),
     #[error("swap invalid: {0}")]
     SwapInvalid(&'static str),
+    #[error("cover invalid: {0}")]
+    CoverInvalid(&'static str),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
@@ -170,6 +172,9 @@ impl Scheduler {
             if p.on_vacation {
                 return false;
             }
+            if p.vacations.iter().any(|vac| vacation_blocks_shift(vac, shift, opts)) {
+                return false;
+            }
         }
 
         true
@@ -235,6 +240,9 @@ impl Scheduler {
             if person.on_vacation {
                 return Err(SchedError::SwapInvalid("target person on vacation"));
             }
+            if person.vacations.iter().any(|vac| vacation_blocks_shift(vac, &self.roster.shifts[pos], opts)) {
+                return Err(SchedError::SwapInvalid("target person on vacation range"));
+            }
         }
 
         self.roster.shifts[pos].assigned = Some(target.clone());
@@ -248,8 +256,63 @@ impl Scheduler {
         }
         Ok(())
     }
+
+    /// Couvre la fin d'un shift à partir d'un instant `from` par une nouvelle personne.
+    pub fn cover_shift(&mut self, shift_id: &ShiftId, from: DateTime<Utc>, person: &PersonId, opts: AssignOptions) -> Result<ShiftId, SchedError> {
+        let pos = self.roster.shifts.iter().position(|s| &s.id == shift_id)
+            .ok_or_else(|| SchedError::UnknownShift(shift_id.as_str().to_string()))?;
+
+        // vérifie la personne cible
+        let cover = self.roster.find_person_by_id(person)
+            .ok_or_else(|| SchedError::UnknownPerson(person.as_str().to_string()))?;
+        if cover.on_vacation {
+            return Err(SchedError::CoverInvalid("person on vacation"));
+        }
+
+        let original = self.roster.shifts[pos].clone();
+        if from <= original.start {
+            return Err(SchedError::CoverInvalid("cover point before shift start"));
+        }
+        if from >= original.end {
+            return Err(SchedError::CoverInvalid("cover point after shift end"));
+        }
+
+        let mut new_segment = Shift {
+            id: ShiftId::random(),
+            name: original.name.clone(),
+            start: from,
+            end: original.end,
+            role: original.role.clone(),
+            assigned: None,
+        };
+
+        if cover.vacations.iter().any(|vac| vacation_blocks_shift(vac, &new_segment, opts)) {
+            return Err(SchedError::CoverInvalid("person vacation conflicts"));
+        }
+
+        if !self.person_ok_for_shift(person, &new_segment, opts, None) {
+            return Err(SchedError::CoverInvalid("assignment constraints violated"));
+        }
+
+        // Met à jour le shift original pour s'arrêter à `from`
+        self.roster.shifts[pos].end = from;
+
+        // assigne et insère le nouveau segment
+        new_segment.assigned = Some(person.clone());
+        let new_id = new_segment.id.clone();
+        self.roster.shifts.insert(pos + 1, new_segment);
+
+        Ok(new_id)
+    }
 }
 
 fn overlaps(a_start: DateTime<Utc>, a_end: DateTime<Utc>, b_start: DateTime<Utc>, b_end: DateTime<Utc>) -> bool {
     a_start < b_end && b_start < a_end
+}
+
+fn vacation_blocks_shift(vac: &VacationPeriod, shift: &Shift, opts: AssignOptions) -> bool {
+    let buffer = Duration::hours(i64::from(opts.min_rest_hours));
+    let vac_start = vac.start - buffer;
+    let vac_end = vac.end + buffer;
+    shift.start < vac_end && vac_start < shift.end
 }
