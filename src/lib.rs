@@ -8,9 +8,11 @@
 
 pub mod io;
 pub mod model;
+pub mod notification;
 pub mod scheduler;
 pub mod storage;
 
 pub use model::{Person, PersonId, Role, Roster, Shift, ShiftId, VacationPeriod};
+pub use notification::{prepare_reminder, Reminder, ReminderRenderer, TextReminder};
 pub use scheduler::{AssignOptions, Conflict, ConflictKind, Scheduler};
 pub use storage::{JsonStorage, Storage};
