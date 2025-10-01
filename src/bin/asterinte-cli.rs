@@ -1,9 +1,10 @@
 #![forbid(unsafe_code)]
 use anyhow::Result;
 use astreinte::{
-    io, scheduler::{AssignOptions, Scheduler},
+    io,
+    model::{Person, ShiftId},
+    scheduler::{AssignOptions, ConflictKind, Scheduler},
     storage::{JsonStorage, Storage},
-    model::Person,
 };
 use clap::{Parser, Subcommand};
 #[cfg(feature = "logging")]
@@ -161,12 +162,14 @@ fn main() -> Result<()> {
             0
         }
         Commands::Swap { shift_id, person, with } => {
-            let sid = crate::astreinte::model::ShiftId(shift_id);
+            let sid = ShiftId::new(shift_id);
             let pa = scheduler.roster().find_person_by_handle(&person)
+                .map(|p| p.id.clone())
                 .ok_or_else(|| anyhow::anyhow!("unknown person: {}", person))?;
             let pb = scheduler.roster().find_person_by_handle(&with)
+                .map(|p| p.id.clone())
                 .ok_or_else(|| anyhow::anyhow!("unknown person: {}", with))?;
-            scheduler.swap(&sid, &pa.id, &pb.id, AssignOptions::default())?;
+            scheduler.swap(&sid, &pa, &pb, AssignOptions::default())?;
             storage.save(scheduler.roster())?;
             0
         }
@@ -186,9 +189,9 @@ fn main() -> Result<()> {
                         w.write_record(&[
                             c.person.as_str(), c.shift_a.as_str(), c.shift_b.as_str(),
                             match c.kind {
-                                astreinte::scheduler::ConflictKind::Overlap => "overlap",
-                                astreinte::scheduler::ConflictKind::DoubleAssignment => "double",
-                                astreinte::scheduler::ConflictKind::RestViolation => "rest",
+                                ConflictKind::Overlap => "overlap",
+                                ConflictKind::DoubleAssignment => "double",
+                                ConflictKind::RestViolation => "rest",
                             }
                         ])?;
                     }

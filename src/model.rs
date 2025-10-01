@@ -39,6 +39,7 @@ pub enum Role {
 pub struct ShiftId(String);
 
 impl ShiftId {
+    pub fn new<S: AsRef<str>>(s: S) -> Self { Self(s.as_ref().to_owned()) }
     pub fn random() -> Self { Self(Uuid::new_v4().to_string()) }
     pub fn as_str(&self) -> &str { &self.0 }
 }

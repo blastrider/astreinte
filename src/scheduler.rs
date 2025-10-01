@@ -85,20 +85,26 @@ impl Scheduler {
 
         self.roster.shifts.sort_by_key(|s| s.start);
 
-        for s in self.roster.shifts.iter_mut() {
-            // tente jusqu'à N personnes pour respecter les contraintes
+        for shift_index in 0..self.roster.shifts.len() {
+            // clone pour évaluation sans emprunt mutable simultané
+            let candidate = self.roster.shifts[shift_index].clone();
             let n = people.len();
             let mut tries = 0usize;
+            let mut chosen: Option<PersonId> = None;
+
             while tries < n {
                 let p = &people[idx % n];
-                if self.person_ok_for_shift(&p.id, s, opts) {
-                    s.assigned = Some(p.id.clone());
+                if self.person_ok_for_shift(&p.id, &candidate, opts, Some(shift_index)) {
+                    chosen = Some(p.id.clone());
                     idx = (idx + 1) % n;
                     break;
-                } else {
-                    idx = (idx + 1) % n;
-                    tries += 1;
                 }
+                idx = (idx + 1) % n;
+                tries += 1;
+            }
+
+            if let Some(person) = chosen {
+                self.roster.shifts[shift_index].assigned = Some(person);
             }
             // si aucune personne ne convient : leave unassigned (warning au check)
         }
@@ -106,13 +112,25 @@ impl Scheduler {
     }
 
     /// Vérifie si `person` peut prendre `shift` selon les contraintes.
-    fn person_ok_for_shift(&self, person: &PersonId, shift: &Shift, opts: AssignOptions) -> bool {
+    fn person_ok_for_shift(
+        &self,
+        person: &PersonId,
+        shift: &Shift,
+        opts: AssignOptions,
+        exclude_shift_index: Option<usize>,
+    ) -> bool {
         let mut prev_end: Option<DateTime<Utc>> = None;
         let mut consec = 0u32;
 
         // Parcourt les shifts déjà assignés à cette personne en ordre chronologique
         let mut assigned: Vec<&Shift> = self.roster.shifts.iter()
-            .filter(|s| s.assigned.as_ref() == Some(person))
+            .enumerate()
+            .filter(|(idx, s)| {
+                let same_person = s.assigned.as_ref() == Some(person);
+                let excluded = exclude_shift_index.map(|i| i == *idx).unwrap_or(false);
+                same_person && !excluded
+            })
+            .map(|(_, s)| s)
             .collect();
         assigned.sort_by_key(|s| s.start);
 
@@ -187,27 +205,29 @@ impl Scheduler {
 
     /// Échange l'assignation d'un shift entre deux personnes (idempotent).
     pub fn swap(&mut self, shift_id: &ShiftId, a: &PersonId, b: &PersonId, opts: AssignOptions) -> Result<(), SchedError> {
-        let s = self.roster.find_shift_mut(shift_id)
+        let pos = self.roster.shifts.iter().position(|s| &s.id == shift_id)
             .ok_or_else(|| SchedError::UnknownShift(shift_id.as_str().to_string()))?;
 
-        // Si le shift est déjà assigné à A → on met B (si conforme), et inversement.
-        let target = if s.assigned.as_ref() == Some(a) {
-            b
-        } else if s.assigned.as_ref() == Some(b) {
-            a
-        } else {
-            return Err(SchedError::SwapInvalid("shift not assigned to either person"));
-        };
+        let (target, prev) = {
+            let s = &mut self.roster.shifts[pos];
+            let target = if s.assigned.as_ref() == Some(a) {
+                b
+            } else if s.assigned.as_ref() == Some(b) {
+                a
+            } else {
+                return Err(SchedError::SwapInvalid("shift not assigned to either person"));
+            };
 
-        // clone pour tentative
-        let prev = s.assigned.clone();
-        s.assigned = Some(target.clone());
+            let prev = s.assigned.clone();
+            s.assigned = Some(target.clone());
+            (target.clone(), prev)
+        };
 
         // Valide qu'on n'introduit pas de conflit sévère
         let conflicts = self.detect_conflicts(opts);
-        let severe = conflicts.iter().any(|c| &c.person == target && (c.kind == crate::scheduler::ConflictKind::Overlap));
+        let severe = conflicts.iter().any(|c| &c.person == &target && c.kind == ConflictKind::Overlap);
         if severe {
-            s.assigned = prev; // rollback
+            self.roster.shifts[pos].assigned = prev; // rollback
             return Err(SchedError::SwapInvalid("introduces overlap"));
         }
         Ok(())
