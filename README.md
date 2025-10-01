@@ -9,6 +9,7 @@ Outil Rust minimaliste pour gérer des rotations d'astreinte **hors base de donn
 - Assignation rotative respectant repos minimal et nombre maximal de créneaux consécutifs
 - Détection des conflits (chevauchement, double assignation, repos insuffisant)
 - Échange sécurisé d'assignations entre deux personnes
+- Génération de rappels texte (extensible) pour prévenir les membres avant leur astreinte
 - Option de logging basée sur `tracing`
 
 ## Prérequis
@@ -45,6 +46,9 @@ cargo run -- list --out-json roster.json --out-csv shifts_export.csv
 
 # Confier la fin d'un shift à quelqu'un d'autre (maladie, urgence...)
 cargo run -- cover --shift-id <ID> --from 2025-12-29T08:00:00Z --with maxime
+
+# Générer un rappel texte 2 jours avant une astreinte
+cargo run -- notify --handle alice --days-before 2 --out reminder_alice.txt
 ```
 
 ## Formats des fichiers
@@ -60,6 +64,7 @@ charles,Charles Leroy,false,2025-12-26
 > - `on_vacation` : indisponibilité complète (valeurs `true/false`, `1/0`, `yes/no`, `oui/non`).
 > - `vacations` : liste de périodes séparées par `;` (`YYYY-MM-DD` ou `start/end`). Une date seule bloque la journée complète.
 >   Chaque période rend la personne indisponible pendant l'intervalle et ajoute une marge de repos de `min_rest_hours` avant/après.
+> - Les rappels utilisent `TextReminder` par défaut, et peuvent être adaptés via le trait `ReminderRenderer`.
 
 ### CSV shifts (`name,start,end` — timestamps RFC3339 UTC)
 ```csv
