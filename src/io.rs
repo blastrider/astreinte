@@ -56,16 +56,12 @@ fn parse_vacation_chunk(chunk: &str) -> anyhow::Result<VacationPeriod> {
         let (start, _) = parse_point(start_raw.trim())?;
         let (mut end, end_was_date) = parse_point(end_raw.trim())?;
         if end_was_date {
-            end = end + Duration::days(1);
+            end += Duration::days(1);
         }
         VacationPeriod::new(start, end).map_err(anyhow::Error::msg)
     } else {
-        let (start, was_date) = parse_point(chunk)?;
-        let end = if was_date {
-            start + Duration::days(1)
-        } else {
-            start + Duration::days(1)
-        };
+        let (start, _) = parse_point(chunk)?;
+        let end = start + Duration::days(1);
         VacationPeriod::new(start, end).map_err(anyhow::Error::msg)
     }
 }
@@ -109,7 +105,7 @@ pub fn export_roster_json<P: AsRef<Path>>(path: P, roster: &Roster) -> anyhow::R
 /// Export CSV des shifts: header `id,name,start,end,assigned_handle`
 pub fn export_shifts_csv<P: AsRef<Path>>(path: P, roster: &Roster) -> anyhow::Result<()> {
     let mut w = WriterBuilder::new().has_headers(true).from_path(path)?;
-    w.write_record(&["id", "name", "start", "end", "assigned_handle"])?;
+    w.write_record(["id", "name", "start", "end", "assigned_handle"])?;
     for s in &roster.shifts {
         let assigned = s
             .assigned
@@ -117,11 +113,13 @@ pub fn export_shifts_csv<P: AsRef<Path>>(path: P, roster: &Roster) -> anyhow::Re
             .and_then(|pid| roster.people.iter().find(|p| p.id == *pid))
             .map(|p| p.handle.as_str())
             .unwrap_or("");
-        w.write_record(&[
+        let start = s.start.to_rfc3339();
+        let end = s.end.to_rfc3339();
+        w.write_record([
             s.id.as_str(),
-            &s.name,
-            &s.start.to_rfc3339(),
-            &s.end.to_rfc3339(),
+            s.name.as_str(),
+            start.as_str(),
+            end.as_str(),
             assigned,
         ])?;
     }
