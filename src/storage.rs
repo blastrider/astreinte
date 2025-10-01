@@ -18,21 +18,24 @@ pub struct JsonStorage {
 
 impl JsonStorage {
     pub fn open<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        Ok(Self { path: path.as_ref().to_path_buf() })
+        Ok(Self {
+            path: path.as_ref().to_path_buf(),
+        })
     }
 }
 
 impl Storage for JsonStorage {
     fn load(&self) -> anyhow::Result<Roster> {
-        let data = fs::read(&self.path).with_context(|| format!("reading {}", self.path.display()))?;
-        let roster: Roster = serde_json::from_slice(&data).with_context(|| "parsing roster.json")?;
+        let data =
+            fs::read(&self.path).with_context(|| format!("reading {}", self.path.display()))?;
+        let roster: Roster =
+            serde_json::from_slice(&data).with_context(|| "parsing roster.json")?;
         Ok(roster)
     }
 
     fn save(&self, roster: &Roster) -> anyhow::Result<()> {
         let json = serde_json::to_vec_pretty(roster)?;
-        let mut tmp = NamedTempFile::new_in(
-            self.path.parent().unwrap_or_else(|| Path::new(".")))
+        let mut tmp = NamedTempFile::new_in(self.path.parent().unwrap_or_else(|| Path::new(".")))
             .with_context(|| "creating temp file")?;
         tmp.write_all(&json)?;
         tmp.flush()?;
