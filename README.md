@@ -49,6 +49,11 @@ cargo run -- cover --shift-id <ID> --from 2025-12-29T08:00:00Z --with maxime
 
 # Générer un rappel texte 2 jours avant une astreinte
 cargo run -- notify --handle alice --days-before 2 --out reminder_alice.txt
+
+# Enregistrer un template et générer un roster sur une période
+cargo run -- template create --file templates/weekend.json
+cargo run -- template list
+cargo run -- generate --template weekend-2p --start 2025-10-20 --end 2025-11-03 --out roster_weekend.json
 ```
 
 ## Formats des fichiers
@@ -65,6 +70,40 @@ charles,Charles Leroy,false,2025-12-26
 > - `vacations` : liste de périodes séparées par `;` (`YYYY-MM-DD` ou `start/end`). Une date seule bloque la journée complète.
 >   Chaque période rend la personne indisponible pendant l'intervalle et ajoute une marge de repos de `min_rest_hours` avant/après.
 > - Les rappels utilisent `TextReminder` par défaut, et peuvent être adaptés via le trait `ReminderRenderer`.
+
+### Templates de rotation (`templates/*.json`)
+
+```json
+{
+  "id": "weekend-2p",
+  "name": "Week-end 2 personnes (alternance)",
+  "rotation_cycle_days": 14,
+  "slots": [
+    {
+      "role": "oncall",
+      "start_time": "18:00:00",
+      "end_time": "09:00:00",
+      "days": [6, 7],
+      "priority": 0
+    },
+    {
+      "role": "backup",
+      "start_time": "18:00:00",
+      "end_time": "09:00:00",
+      "days": [6, 7],
+      "priority": 1
+    }
+  ],
+  "rules": {
+    "min_rest_hours": 12,
+    "max_consecutive_days": 3,
+    "allow_weekend_swap": true
+  }
+}
+```
+
+> Les fichiers sont stockés par défaut dans `./templates`. Les commandes `template create/list/show`
+> facilitent le partage versionné, tandis que `generate` produit un roster JSON sans l'assigner.
 
 ### CSV shifts (`name,start,end` — timestamps RFC3339 UTC)
 ```csv
