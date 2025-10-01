@@ -94,6 +94,11 @@ impl Scheduler {
 
             while tries < n {
                 let p = &people[idx % n];
+                if p.on_vacation {
+                    idx = (idx + 1) % n;
+                    tries += 1;
+                    continue;
+                }
                 if self.person_ok_for_shift(&p.id, &candidate, opts, Some(shift_index)) {
                     chosen = Some(p.id.clone());
                     idx = (idx + 1) % n;
@@ -161,6 +166,12 @@ impl Scheduler {
             return false;
         }
 
+        if let Some(p) = self.roster.find_person_by_id(person) {
+            if p.on_vacation {
+                return false;
+            }
+        }
+
         true
     }
 
@@ -209,19 +220,24 @@ impl Scheduler {
             .ok_or_else(|| SchedError::UnknownShift(shift_id.as_str().to_string()))?;
 
         let (target, prev) = {
-            let s = &mut self.roster.shifts[pos];
+            let s = &self.roster.shifts[pos];
             let target = if s.assigned.as_ref() == Some(a) {
-                b
+                b.clone()
             } else if s.assigned.as_ref() == Some(b) {
-                a
+                a.clone()
             } else {
                 return Err(SchedError::SwapInvalid("shift not assigned to either person"));
             };
-
-            let prev = s.assigned.clone();
-            s.assigned = Some(target.clone());
-            (target.clone(), prev)
+            (target, s.assigned.clone())
         };
+
+        if let Some(person) = self.roster.find_person_by_id(&target) {
+            if person.on_vacation {
+                return Err(SchedError::SwapInvalid("target person on vacation"));
+            }
+        }
+
+        self.roster.shifts[pos].assigned = Some(target.clone());
 
         // Valide qu'on n'introduit pas de conflit sévère
         let conflicts = self.detect_conflicts(opts);

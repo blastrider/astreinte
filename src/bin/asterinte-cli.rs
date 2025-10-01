@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-use anyhow::Result;
+use anyhow::{Result, bail};
 use astreinte::{
     io,
     model::{Person, ShiftId},
@@ -133,7 +133,7 @@ fn main() -> Result<()> {
         }
         Commands::Assign { people, min_rest_hours, max_consecutive_shifts } => {
             let opts = AssignOptions { min_rest_hours, max_consecutive_shifts };
-            let persons: Vec<Person> = if let Some(list) = people {
+            let mut persons: Vec<Person> = if let Some(list) = people {
                 let set: Vec<String> = list.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
                 let mut out = Vec::new();
                 for h in set {
@@ -145,6 +145,10 @@ fn main() -> Result<()> {
             } else {
                 scheduler.roster().people.clone()
             };
+            persons.retain(|p| !p.on_vacation);
+            if persons.is_empty() {
+                bail!("aucune personne disponible (toutes en vacances?)");
+            }
             scheduler.assign_rotative(&persons, opts)?;
             storage.save(scheduler.roster())?;
             0

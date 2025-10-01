@@ -18,11 +18,18 @@ pub struct Person {
     pub id: PersonId,
     pub handle: String,
     pub display_name: String,
+    #[serde(default)]
+    pub on_vacation: bool,
 }
 
 impl Person {
     pub fn new<H: Into<String>, D: Into<String>>(handle: H, display_name: D) -> Self {
-        Self { id: PersonId::random(), handle: handle.into(), display_name: display_name.into() }
+        Self {
+            id: PersonId::random(),
+            handle: handle.into(),
+            display_name: display_name.into(),
+            on_vacation: false,
+        }
     }
 }
 
@@ -87,6 +94,9 @@ pub struct Roster {
 impl Roster {
     pub fn find_person_by_handle<'a>(&'a self, handle: &str) -> Option<&'a Person> {
         self.people.iter().find(|p| p.handle == handle)
+    }
+    pub fn find_person_by_id<'a>(&'a self, id: &PersonId) -> Option<&'a Person> {
+        self.people.iter().find(|p| &p.id == id)
     }
     pub fn find_person_mut_by_id(&mut self, id: &PersonId) -> Option<&mut Person> {
         self.people.iter_mut().find(|p| &p.id == id)

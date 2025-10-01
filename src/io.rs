@@ -16,9 +16,25 @@ pub fn import_people_csv<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Person>>
         if handle.is_empty() || display.is_empty() {
             bail!("invalid people row (empty)");
         }
-        out.push(Person::new(handle.to_string(), display.to_string()));
+        let mut person = Person::new(handle.to_string(), display.to_string());
+        if let Some(flag) = rec.get(2) {
+            let flag = flag.trim();
+            if !flag.is_empty() {
+                person.on_vacation = parse_bool(flag)
+                    .with_context(|| format!("invalid on_vacation value for handle {handle}"))?;
+            }
+        }
+        out.push(person);
     }
     Ok(out)
+}
+
+fn parse_bool(s: &str) -> anyhow::Result<bool> {
+    match s.to_ascii_lowercase().as_str() {
+        "true" | "1" | "yes" | "y" | "oui" => Ok(true),
+        "false" | "0" | "no" | "n" | "non" => Ok(false),
+        _ => bail!("expected boolean"),
+    }
 }
 
 /// Import de shifts: header `name,start,end` (RFC3339 UTC)

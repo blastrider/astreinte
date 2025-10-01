@@ -44,12 +44,14 @@ cargo run -- list --out-json roster.json --out-csv shifts_export.csv
 ```
 
 ## Formats des fichiers
-### CSV personnes (`handle,display_name`)
+### CSV personnes (`handle,display_name[,on_vacation]`)
 ```csv
-handle,display_name
-alice,Alice Dupont
-bob,Bob Martin
+handle,display_name,on_vacation
+alice,Alice Dupont,false
+bob,Bob Martin,true
 ```
+
+> La colonne `on_vacation` est optionnelle. Valeurs acceptées : `true/false`, `1/0`, `yes/no`, `oui/non`.
 
 ### CSV shifts (`name,start,end` — timestamps RFC3339 UTC)
 ```csv
@@ -61,7 +63,12 @@ Astreinte Nuit,2024-08-05T18:00:00Z,2024-08-06T06:00:00Z
 ```json
 {
   "people": [
-    {"id": "...", "handle": "alice", "display_name": "Alice Dupont"}
+    {
+      "id": "...",
+      "handle": "alice",
+      "display_name": "Alice Dupont",
+      "on_vacation": false
+    }
   ],
   "shifts": [
     {
