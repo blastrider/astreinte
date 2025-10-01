@@ -81,6 +81,21 @@ enum Commands {
         with: String,
     },
 
+    /// Couvrir la fin d'un shift à partir d'une date donnée
+    Cover {
+        #[arg(long)]
+        shift_id: String,
+        /// Point de reprise (RFC3339 UTC) à l'intérieur du shift
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        with: String,
+        #[arg(long, default_value_t = 11)]
+        min_rest_hours: u32,
+        #[arg(long, default_value_t = 3)]
+        max_consecutive_shifts: u32,
+    },
+
     /// Vérifier les conflits
     Check {
         #[arg(long, default_value_t = 11)]
@@ -147,7 +162,7 @@ fn main() -> Result<()> {
             };
             persons.retain(|p| !p.on_vacation);
             if persons.is_empty() {
-                bail!("aucune personne disponible (toutes en vacances?)");
+                bail!("aucune personne disponible (vacances ou indisponibilités)");
             }
             scheduler.assign_rotative(&persons, opts)?;
             storage.save(scheduler.roster())?;
@@ -174,6 +189,17 @@ fn main() -> Result<()> {
                 .map(|p| p.id.clone())
                 .ok_or_else(|| anyhow::anyhow!("unknown person: {}", with))?;
             scheduler.swap(&sid, &pa, &pb, AssignOptions::default())?;
+            storage.save(scheduler.roster())?;
+            0
+        }
+        Commands::Cover { shift_id, from, with, min_rest_hours, max_consecutive_shifts } => {
+            let sid = ShiftId::new(shift_id);
+            let at = from.parse()?;
+            let cover_id = scheduler.roster().find_person_by_handle(&with)
+                .map(|p| p.id.clone())
+                .ok_or_else(|| anyhow::anyhow!("unknown person: {}", with))?;
+            let opts = AssignOptions { min_rest_hours, max_consecutive_shifts };
+            scheduler.cover_shift(&sid, at, &cover_id, opts)?;
             storage.save(scheduler.roster())?;
             0
         }
