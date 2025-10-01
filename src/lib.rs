@@ -11,6 +11,6 @@ pub mod scheduler;
 pub mod storage;
 pub mod io;
 
-pub use model::{Person, PersonId, Role, Shift, ShiftId, Roster};
+pub use model::{Person, PersonId, Role, Shift, ShiftId, VacationPeriod, Roster};
 pub use scheduler::{AssignOptions, Conflict, ConflictKind, Scheduler};
 pub use storage::{Storage, JsonStorage};
