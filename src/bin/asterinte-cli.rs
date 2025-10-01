@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use astreinte::{
     io,
     model::{Person, ShiftId},
@@ -8,7 +8,7 @@ use astreinte::{
 };
 use clap::{Parser, Subcommand};
 #[cfg(feature = "logging")]
-use tracing_subscriber::{EnvFilter, fmt::Subscriber};
+use tracing_subscriber::{fmt::Subscriber, EnvFilter};
 
 /// CLI minimaliste d'astreinte (sans base de données)
 #[derive(Parser, Debug)]
@@ -113,7 +113,9 @@ fn main() -> Result<()> {
 
     #[cfg(feature = "logging")]
     if cli.log {
-        let _ = Subscriber::builder().with_env_filter(EnvFilter::from_default_env()).try_init();
+        let _ = Subscriber::builder()
+            .with_env_filter(EnvFilter::from_default_env())
+            .try_init();
     }
 
     let storage = JsonStorage::open(&cli.roster)?;
@@ -146,10 +148,21 @@ fn main() -> Result<()> {
             storage.save(scheduler.roster())?;
             0
         }
-        Commands::Assign { people, min_rest_hours, max_consecutive_shifts } => {
-            let opts = AssignOptions { min_rest_hours, max_consecutive_shifts };
+        Commands::Assign {
+            people,
+            min_rest_hours,
+            max_consecutive_shifts,
+        } => {
+            let opts = AssignOptions {
+                min_rest_hours,
+                max_consecutive_shifts,
+            };
             let mut persons: Vec<Person> = if let Some(list) = people {
-                let set: Vec<String> = list.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+                let set: Vec<String> = list
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
                 let mut out = Vec::new();
                 for h in set {
                     if let Some(p) = scheduler.roster().people.iter().find(|p| p.handle == h) {
@@ -169,42 +182,81 @@ fn main() -> Result<()> {
             0
         }
         Commands::List { out_json, out_csv } => {
-            if let Some(path) = out_json { io::export_roster_json(path, scheduler.roster())?; }
-            if let Some(path) = out_csv { io::export_shifts_csv(path, scheduler.roster())?; }
+            if let Some(path) = out_json {
+                io::export_roster_json(path, scheduler.roster())?;
+            }
+            if let Some(path) = out_csv {
+                io::export_shifts_csv(path, scheduler.roster())?;
+            }
             // impression compacte
             for s in &scheduler.roster().shifts {
-                let assigned = s.assigned.as_ref()
+                let assigned = s
+                    .assigned
+                    .as_ref()
                     .and_then(|pid| scheduler.roster().people.iter().find(|p| p.id == *pid))
-                    .map(|p| p.handle.as_str()).unwrap_or("-");
-                println!("{} | {} → {} | {}", s.id.as_str(), s.start.to_rfc3339(), s.end.to_rfc3339(), assigned);
+                    .map(|p| p.handle.as_str())
+                    .unwrap_or("-");
+                println!(
+                    "{} | {} → {} | {}",
+                    s.id.as_str(),
+                    s.start.to_rfc3339(),
+                    s.end.to_rfc3339(),
+                    assigned
+                );
             }
             0
         }
-        Commands::Swap { shift_id, person, with } => {
+        Commands::Swap {
+            shift_id,
+            person,
+            with,
+        } => {
             let sid = ShiftId::new(shift_id);
-            let pa = scheduler.roster().find_person_by_handle(&person)
+            let pa = scheduler
+                .roster()
+                .find_person_by_handle(&person)
                 .map(|p| p.id.clone())
                 .ok_or_else(|| anyhow::anyhow!("unknown person: {}", person))?;
-            let pb = scheduler.roster().find_person_by_handle(&with)
+            let pb = scheduler
+                .roster()
+                .find_person_by_handle(&with)
                 .map(|p| p.id.clone())
                 .ok_or_else(|| anyhow::anyhow!("unknown person: {}", with))?;
             scheduler.swap(&sid, &pa, &pb, AssignOptions::default())?;
             storage.save(scheduler.roster())?;
             0
         }
-        Commands::Cover { shift_id, from, with, min_rest_hours, max_consecutive_shifts } => {
+        Commands::Cover {
+            shift_id,
+            from,
+            with,
+            min_rest_hours,
+            max_consecutive_shifts,
+        } => {
             let sid = ShiftId::new(shift_id);
             let at = from.parse()?;
-            let cover_id = scheduler.roster().find_person_by_handle(&with)
+            let cover_id = scheduler
+                .roster()
+                .find_person_by_handle(&with)
                 .map(|p| p.id.clone())
                 .ok_or_else(|| anyhow::anyhow!("unknown person: {}", with))?;
-            let opts = AssignOptions { min_rest_hours, max_consecutive_shifts };
+            let opts = AssignOptions {
+                min_rest_hours,
+                max_consecutive_shifts,
+            };
             scheduler.cover_shift(&sid, at, &cover_id, opts)?;
             storage.save(scheduler.roster())?;
             0
         }
-        Commands::Check { min_rest_hours, max_consecutive_shifts, report } => {
-            let opts = AssignOptions { min_rest_hours, max_consecutive_shifts };
+        Commands::Check {
+            min_rest_hours,
+            max_consecutive_shifts,
+            report,
+        } => {
+            let opts = AssignOptions {
+                min_rest_hours,
+                max_consecutive_shifts,
+            };
             let conflicts = scheduler.detect_conflicts(opts);
             if conflicts.is_empty() {
                 println!("OK: no conflicts");
@@ -214,15 +266,17 @@ fn main() -> Result<()> {
                 if let Some(path) = report {
                     // CSV simple
                     let mut w = csv::Writer::from_path(path)?;
-                    w.write_record(&["person_id","shift_a","shift_b","kind"])?;
+                    w.write_record(&["person_id", "shift_a", "shift_b", "kind"])?;
                     for c in &conflicts {
                         w.write_record(&[
-                            c.person.as_str(), c.shift_a.as_str(), c.shift_b.as_str(),
+                            c.person.as_str(),
+                            c.shift_a.as_str(),
+                            c.shift_b.as_str(),
                             match c.kind {
                                 ConflictKind::Overlap => "overlap",
                                 ConflictKind::DoubleAssignment => "double",
                                 ConflictKind::RestViolation => "rest",
-                            }
+                            },
                         ])?;
                     }
                     w.flush()?;
