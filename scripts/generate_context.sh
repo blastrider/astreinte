@@ -2,32 +2,30 @@
 #
 # generate_context.sh - Produce a prompt-ready project overview for ChatGPT.
 #
-# The script collects high-signal data (metadata, recent changes, tests, TODOs)
-# about the current repository and writes it to a timestamped Markdown file in
-# the `scripts/` directory. The file can be pasted directly into a chat prompt
-# to provide context when brainstorming new features.
+# The script collects high-signal data (metadata, recent changes, tests, TODOs,
+# source snapshot) about the current repository and writes it to a timestamped
+# Markdown file in the `scripts/` directory. The output can be pasted directly
+# into a chat prompt to bootstrap discussions about new features.
 #
-# Generated artifacts live under `scripts/` and are ignored by git (see
-# `.gitignore`). The script itself remains versioned and documented for reuse.
+# Generated artifacts live under `scripts/` and are ignored by git. This script
+# itself is versioned so teams can adapt it easily.
 
 set -euo pipefail
 
 # --- Utility helpers -------------------------------------------------------
 
-# Print usage instructions.
 usage() {
     cat <<'USAGE'
 Usage: scripts/generate_context.sh [--help]
 
 Collect repository context and write it into scripts/context_YYYYMMDD_HHMMSS.md.
-The script expects to be run from anywhere inside the repository.
+The script can be launched from anywhere inside the workspace.
 
 Options:
   --help    Display this help message and exit.
 USAGE
 }
 
-# Ensure an external command is available before we rely on it.
 require_cmd() {
     local cmd="$1"
     if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -36,7 +34,6 @@ require_cmd() {
     fi
 }
 
-# Append a section with a title and body to the output file.
 append_section() {
     local title="$1"
     shift
@@ -74,10 +71,13 @@ PY
 }
 
 collect_dependencies() {
-    cargo metadata --format-version 1 --no-deps \
-        | python3 - <<'PY'
-import json, sys
-meta = json.load(sys.stdin)
+    python3 <<'PY'
+import json
+import subprocess
+
+meta = json.loads(subprocess.check_output([
+    "cargo", "metadata", "--no-deps", "--format-version", "1"
+]).decode())
 pkg = meta["packages"][0]
 print("- Primary dependencies:")
 for dep in sorted(pkg.get("dependencies", []), key=lambda d: d["name"]):
@@ -96,11 +96,23 @@ collect_status() {
 }
 
 collect_todos() {
-    rg --no-heading --line-number "TODO|FIXME" || echo "(no TODO/FIXME found)"
+    grep -R --line-number --exclude-dir=target -E "TODO|FIXME" src tests 2>/dev/null || echo "(no TODO/FIXME found)"
 }
 
 collect_tests() {
     cargo test --all -- --list 2>/dev/null || echo "(unable to list tests)"
+}
+
+collect_rs_sources() {
+    while IFS= read -r file; do
+        local local_rel="${file#./}"
+        echo "### ${local_rel}"
+        echo
+        echo '```rust'
+        cat "$file"
+        echo '```'
+        echo
+    done < <(find src -type f -name '*.rs' -print | sort)
 }
 
 # --- Main ------------------------------------------------------------------
@@ -113,18 +125,21 @@ fi
 require_cmd python3
 require_cmd cargo
 require_cmd git
-require_cmd rg
+require_cmd grep
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(git rev-parse --show-toplevel)"
 OUTPUT_DIR="$SCRIPT_DIR"
 TIMESTAMP="$(date +'%Y%m%d_%H%M%S')"
 OUTPUT_FILE="$OUTPUT_DIR/context_${TIMESTAMP}.md"
+
+cd "$REPO_ROOT"
 
 {
     echo "# Project Context"
     echo
     echo "Generated: $(date --iso-8601=seconds)"
-    echo "Repository: $(basename "$(git rev-parse --show-toplevel)")"
+    echo "Repository: $(basename "$REPO_ROOT")"
     echo
 } >"$OUTPUT_FILE"
 
@@ -134,6 +149,7 @@ append_section "Recent Commits" collect_recent_commits
 append_section "Working Tree Status" collect_status
 append_section "TODO / FIXME" collect_todos
 append_section "Test Matrix" collect_tests
+append_section "Rust Source Snapshot" collect_rs_sources
 
 cat <<EOM
 Context written to: $OUTPUT_FILE

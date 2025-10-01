@@ -1,14 +1,16 @@
 #![forbid(unsafe_code)]
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use astreinte::{
-    io,
+    export_roster_to_path, generate_roster, io, load_template_from_file,
     model::{Person, ShiftId},
     notification::{prepare_reminder, TextReminder},
     scheduler::{AssignOptions, ConflictKind, Scheduler},
     storage::{JsonStorage, Storage},
+    TemplateStore,
 };
-use chrono::Utc;
+use chrono::{NaiveDate, Utc};
 use clap::{Parser, Subcommand};
+use serde_json::to_string_pretty;
 #[cfg(feature = "logging")]
 use tracing_subscriber::{fmt::Subscriber, EnvFilter};
 
@@ -23,6 +25,10 @@ struct Cli {
     /// Fichier JSON de roster
     #[arg(long, global = true, default_value = "roster.json")]
     roster: String,
+
+    /// Répertoire des templates
+    #[arg(long, global = true, default_value = "templates")]
+    templates: String,
 
     #[command(subcommand)]
     cmd: Commands,
@@ -119,6 +125,37 @@ enum Commands {
         #[arg(long)]
         out: String,
     },
+
+    /// Gérer les templates de rotation
+    Template {
+        #[command(subcommand)]
+        cmd: TemplateCommand,
+    },
+
+    /// Générer un roster à partir d'un template
+    Generate {
+        #[arg(long)]
+        template: String,
+        #[arg(long)]
+        start: String,
+        #[arg(long)]
+        end: String,
+        #[arg(long)]
+        out: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum TemplateCommand {
+    /// Crée ou met à jour un template depuis un fichier JSON
+    Create {
+        #[arg(long)]
+        file: String,
+    },
+    /// Liste les templates disponibles
+    List,
+    /// Affiche le contenu d'un template
+    Show { id: String },
 }
 
 fn main() -> Result<()> {
@@ -320,7 +357,70 @@ fn main() -> Result<()> {
             );
             0
         }
+        Commands::Template { cmd } => {
+            let store = TemplateStore::new(&cli.templates);
+            match cmd {
+                TemplateCommand::Create { file } => {
+                    let template = load_template_from_file(&file)?;
+                    let path = store.save(&template)?;
+                    println!("Template '{}' saved to {}", template.id, path.display());
+                    0
+                }
+                TemplateCommand::List => {
+                    let list = store.list()?;
+                    if list.is_empty() {
+                        println!("No templates found in {}", cli.templates);
+                    } else {
+                        for info in list {
+                            let updated = info
+                                .modified
+                                .map(|dt| dt.to_rfc3339())
+                                .unwrap_or_else(|| "n/a".to_string());
+                            println!(
+                                "{} | {} | cycle {}d | updated {}",
+                                info.template.id,
+                                info.template.name,
+                                info.template.rotation_cycle_days,
+                                updated
+                            );
+                        }
+                    }
+                    0
+                }
+                TemplateCommand::Show { id } => {
+                    let template = store.load(&id)?;
+                    let json = to_string_pretty(&template)?;
+                    println!("{}", json);
+                    0
+                }
+            }
+        }
+        Commands::Generate {
+            template,
+            start,
+            end,
+            out,
+        } => {
+            let store = TemplateStore::new(&cli.templates);
+            let template = store.load(&template)?;
+            let start_date = parse_date(&start)?;
+            let end_date = parse_date(&end)?;
+            let roster = generate_roster(&template, start_date, end_date, template.rules.clone())?;
+            export_roster_to_path(&out, &roster)?;
+            println!(
+                "Roster generated from template '{}' into {} ({} shifts)",
+                template.id,
+                out,
+                roster.shifts.len()
+            );
+            0
+        }
     };
 
     std::process::exit(code);
+}
+
+fn parse_date(value: &str) -> Result<NaiveDate> {
+    NaiveDate::parse_from_str(value, "%Y-%m-%d")
+        .with_context(|| format!("invalid date (expected YYYY-MM-DD): {value}"))
 }

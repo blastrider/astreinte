@@ -1,0 +1,24 @@
+{
+  "id": "week-1p",
+  "name": "Semaine 1p",
+  "description": "Rotation standard pour une personne sur les semaines",
+  "rotation_cycle_days": 7,
+  "slots": [
+    {
+      "role": "oncall",
+      "start_time": "18:00:00",
+      "end_time": "09:00:00",
+      "days": [6, 7],
+      "priority": 0
+    }
+  ],
+  "rules": {
+    "min_rest_hours": 12,
+    "max_consecutive_days": 3,
+    "allow_weekend_swap": true
+  },
+  "metadata": {
+    "version": "1.0",
+    "authors": ["Equipe Astreinte"]
+  }
+}
