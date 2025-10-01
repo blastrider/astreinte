@@ -52,9 +52,7 @@ fn parse_vacations(raw: &str) -> anyhow::Result<Vec<VacationPeriod>> {
 }
 
 fn parse_vacation_chunk(chunk: &str) -> anyhow::Result<VacationPeriod> {
-    if let Some((start_raw, end_raw)) = chunk.split_once('/')
-        .or_else(|| chunk.split_once(".."))
-    {
+    if let Some((start_raw, end_raw)) = chunk.split_once('/').or_else(|| chunk.split_once("..")) {
         let (start, _) = parse_point(start_raw.trim())?;
         let (mut end, end_was_date) = parse_point(end_raw.trim())?;
         if end_was_date {
@@ -78,7 +76,9 @@ fn parse_point(raw: &str) -> anyhow::Result<(DateTime<Utc>, bool)> {
     }
     let date = NaiveDate::parse_from_str(raw, "%Y-%m-%d")
         .with_context(|| format!("invalid date/datetime: {raw}"))?;
-    let datetime = date.and_hms_opt(0, 0, 0).context("invalid midnight conversion")?;
+    let datetime = date
+        .and_hms_opt(0, 0, 0)
+        .context("invalid midnight conversion")?;
     Ok((Utc.from_utc_datetime(&datetime), true))
 }
 
@@ -111,11 +111,18 @@ pub fn export_shifts_csv<P: AsRef<Path>>(path: P, roster: &Roster) -> anyhow::Re
     let mut w = WriterBuilder::new().has_headers(true).from_path(path)?;
     w.write_record(&["id", "name", "start", "end", "assigned_handle"])?;
     for s in &roster.shifts {
-        let assigned = s.assigned.as_ref()
+        let assigned = s
+            .assigned
+            .as_ref()
             .and_then(|pid| roster.people.iter().find(|p| p.id == *pid))
-            .map(|p| p.handle.as_str()).unwrap_or("");
+            .map(|p| p.handle.as_str())
+            .unwrap_or("");
         w.write_record(&[
-            s.id.as_str(), &s.name, &s.start.to_rfc3339(), &s.end.to_rfc3339(), assigned
+            s.id.as_str(),
+            &s.name,
+            &s.start.to_rfc3339(),
+            &s.end.to_rfc3339(),
+            assigned,
         ])?;
     }
     w.flush()?;
