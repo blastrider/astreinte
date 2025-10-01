@@ -5,6 +5,7 @@ Outil Rust minimaliste pour gérer des rotations d'astreinte **hors base de donn
 ## Fonctionnalités principales
 - Création et édition de créneaux horodatés en UTC avec validation automatique
 - Import de personnes et de shifts via CSV, export du roster en JSON/CSV
+- Gestion des congés (jours/périodes bloquantes) avec marge de repos configurable
 - Assignation rotative respectant repos minimal et nombre maximal de créneaux consécutifs
 - Détection des conflits (chevauchement, double assignation, repos insuffisant)
 - Échange sécurisé d'assignations entre deux personnes
@@ -41,17 +42,24 @@ cargo run -- check --report conflicts.csv
 
 # Lister les shifts, exporter les données
 cargo run -- list --out-json roster.json --out-csv shifts_export.csv
+
+# Confier la fin d'un shift à quelqu'un d'autre (maladie, urgence...)
+cargo run -- cover --shift-id <ID> --from 2025-12-29T08:00:00Z --with maxime
 ```
 
 ## Formats des fichiers
-### CSV personnes (`handle,display_name[,on_vacation]`)
+### CSV personnes (`handle,display_name[,on_vacation][,vacations]`)
 ```csv
-handle,display_name,on_vacation
-alice,Alice Dupont,false
-bob,Bob Martin,true
+handle,display_name,on_vacation,vacations
+alice,Alice Dupont,false,
+bob,Bob Martin,false,2025-12-24/2025-12-31;2026-01-05
+charles,Charles Leroy,false,2025-12-26
 ```
 
-> La colonne `on_vacation` est optionnelle. Valeurs acceptées : `true/false`, `1/0`, `yes/no`, `oui/non`.
+> Colonnes optionnelles :
+> - `on_vacation` : indisponibilité complète (valeurs `true/false`, `1/0`, `yes/no`, `oui/non`).
+> - `vacations` : liste de périodes séparées par `;` (`YYYY-MM-DD` ou `start/end`). Une date seule bloque la journée complète.
+>   Chaque période rend la personne indisponible pendant l'intervalle et ajoute une marge de repos de `min_rest_hours` avant/après.
 
 ### CSV shifts (`name,start,end` — timestamps RFC3339 UTC)
 ```csv
@@ -67,7 +75,13 @@ Astreinte Nuit,2024-08-05T18:00:00Z,2024-08-06T06:00:00Z
       "id": "...",
       "handle": "alice",
       "display_name": "Alice Dupont",
-      "on_vacation": false
+      "on_vacation": false,
+      "vacations": [
+        {
+          "start": "2025-12-24T00:00:00Z",
+          "end": "2026-01-01T00:00:00Z"
+        }
+      ]
     }
   ],
   "shifts": [
