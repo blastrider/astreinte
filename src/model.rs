@@ -7,9 +7,15 @@ use uuid::Uuid;
 pub struct PersonId(String);
 
 impl PersonId {
-    pub fn new<S: AsRef<str>>(s: S) -> Self { Self(s.as_ref().to_owned()) }
-    pub fn random() -> Self { Self(Uuid::new_v4().to_string()) }
-    pub fn as_str(&self) -> &str { &self.0 }
+    pub fn new<S: AsRef<str>>(s: S) -> Self {
+        Self(s.as_ref().to_owned())
+    }
+    pub fn random() -> Self {
+        Self(Uuid::new_v4().to_string())
+    }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 /// Personne (membre d'astreinte)
@@ -65,9 +71,15 @@ pub enum Role {
 pub struct ShiftId(String);
 
 impl ShiftId {
-    pub fn new<S: AsRef<str>>(s: S) -> Self { Self(s.as_ref().to_owned()) }
-    pub fn random() -> Self { Self(Uuid::new_v4().to_string()) }
-    pub fn as_str(&self) -> &str { &self.0 }
+    pub fn new<S: AsRef<str>>(s: S) -> Self {
+        Self(s.as_ref().to_owned())
+    }
+    pub fn random() -> Self {
+        Self(Uuid::new_v4().to_string())
+    }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 /// Créneau d'astreinte (UTC)
@@ -83,7 +95,12 @@ pub struct Shift {
 
 impl Shift {
     /// Crée un shift en validant que `end > start`.
-    pub fn new(name: String, start: DateTime<Utc>, end: DateTime<Utc>, role: Option<Role>) -> Result<Self, String> {
+    pub fn new(
+        name: String,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        role: Option<Role>,
+    ) -> Result<Self, String> {
         if end <= start {
             return Err("end must be strictly after start".to_string());
         }
